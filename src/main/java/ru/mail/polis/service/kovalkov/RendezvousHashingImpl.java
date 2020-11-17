@@ -1,14 +1,11 @@
 package ru.mail.polis.service.kovalkov;
 
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 
 import static com.google.common.hash.Hashing.murmur3_32;
 
@@ -16,7 +13,7 @@ public class RendezvousHashingImpl implements Topology<String> {
     private static final Logger log = LoggerFactory.getLogger(RendezvousHashingImpl.class);
     private final String[] allNodes;
     private final String currentNode;
-    final List<Integer> nodeHashes;
+    final int[] nodeHashes;
 
     /**
      * Constructor for modular topology implementation.
@@ -33,25 +30,31 @@ public class RendezvousHashingImpl implements Topology<String> {
         this.allNodes = new String[allNodes.size()];
         allNodes.toArray(this.allNodes);
         Arrays.sort(this.allNodes);
-        this.nodeHashes = new ArrayList<>();
-        for (final String node: this.allNodes) {
-            nodeHashes.add(murmur3_32().newHasher().putString(node, StandardCharsets.UTF_8).hash().hashCode());
+        this.nodeHashes = new int[this.allNodes.length];
+        for (int i = 0; i < this.allNodes.length; i++) {
+            nodeHashes[i] = murmur3_32().newHasher()
+                    .putString(this.allNodes[i], StandardCharsets.UTF_8).hash().hashCode();
         }
     }
 
     @Override
-    public String identifyByKey(final byte[] key) {
-        final TreeMap<Integer,String> nodesAndHashes = new TreeMap<>();
+    @NotNull
+    public String identifyByKey(@NotNull final byte[] key) {
+        int currentHash;
+        int min = Integer.MAX_VALUE;
+        String owner = null;
         for (int i = 0; i < allNodes.length; i++) {
-            nodesAndHashes.put(nodeHashes.get(i)
-                    + murmur3_32().newHasher().putBytes(key).hash().hashCode(), allNodes[i]);
+            currentHash = nodeHashes[i] + murmur3_32().newHasher().putBytes(key).hash().hashCode();
+            if (currentHash < min){
+                min = currentHash;
+                owner = allNodes[i];
+            }
         }
-        final String ownerNode = nodesAndHashes.firstEntry().getValue();
-        if (ownerNode == null) {
+        if (owner == null) {
             log.error("Hash is null");
             throw new IllegalStateException("Hash code can't be equals null");
         }
-        return ownerNode;
+        return owner;
     }
 
     @Override
