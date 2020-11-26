@@ -58,15 +58,17 @@ public class StreamingSession extends HttpSession {
 
     @NotNull
     private static byte[] preparedChunk(@NotNull final Record currentRecord) {
-        final var dataSize = currentRecord.getKey().limit() + SPLIT.length + currentRecord.getValue().limit();
+        final var key = currentRecord.getKey();
+        final var value = currentRecord.getValue();
+        final var dataSize = key.limit() + SPLIT.length + value.limit();
         final var hexLength = Integer.toHexString(dataSize).getBytes(Charset.defaultCharset());
         final var chunk = new byte[hexLength.length + CRLF.length + dataSize + CRLF.length];
         final var chunkBuffer = ByteBuffer.wrap(chunk);
         chunkBuffer.put(hexLength)
                     .put(CRLF)
-                    .put(currentRecord.getKey())
+                    .put(key)
                     .put(SPLIT)
-                    .put(currentRecord.getValue())
+                    .put(value)
                     .put(CRLF);
         return chunk;
     }
